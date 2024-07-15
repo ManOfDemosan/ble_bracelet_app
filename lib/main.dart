@@ -7,6 +7,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   final title = 'BLE Set Notification';
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -45,9 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   static List<Widget> _pages = <Widget>[
-    MyHomePage(title: 'BLE Set Notification'),
+    PairingPage(),
     DataReceivingPage(),
-    LoginPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -72,10 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.data_usage),
             label: 'Data',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.login),
-            label: 'Login',
-          ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
@@ -85,73 +81,104 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
-  final String title;
-
+class PairingPage extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _PairingPageState createState() => _PairingPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final FlutterBluePlus blue = FlutterBluePlus.instance;
+class _PairingPageState extends State<PairingPage> {
+  FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
+  List<ScanResult> scanResultList = [];
+  bool isScanning = false;
 
-  @override
-  void initState() {
-    blue.scanResults.listen((results) {
-      print("Searching11 ...");
-      print("results : $results");
-      if (results.isNotEmpty) {
-        setState(() {
-          result = results;
-        });
-      }
+  void toggleState() {
+    setState(() {
+      isScanning = !isScanning;
     });
-    blue.connectedDevices.asStream().listen((List<BluetoothDevice> devices) {
-      for (BluetoothDevice device in devices) {
-        print("device : $device");
-      }
-    });
-    super.initState();
+
+    if (isScanning) {
+      startScan();
+    } else {
+      flutterBlue.stopScan();
+    }
   }
 
-  List? result;
-  bool check = false;
-  String viewTxt = "Waiting...";
-
-  Future blueBtn() async {
-    setState(() {
-      check = true;
-      viewTxt = "Searching...";
-    });
-    var bl = await blue.startScan(
-        scanMode: ScanMode.balanced,
-        allowDuplicates: true,
-        timeout: Duration(seconds: 12))
-        .timeout(Duration(seconds: 12), onTimeout: () async {
-      await blue.stopScan();
+  void startScan() {
+    try {
+      flutterBlue.startScan(scanMode: ScanMode.balanced, allowDuplicates: true, timeout: Duration(seconds: 12));
+      scan();
+    } catch (e) {
+      print('Error starting scan: $e');
       setState(() {
-        check = false;
-        viewTxt = "ERR";
+        isScanning = false;
       });
-    });
-    print("startScan : $bl");
+    }
+  }
 
-    await Future.delayed(Duration(seconds: 13), () async {
-      await blue.stopScan();
-      setState(() {
-        check = false;
-        if (this.result == null) viewTxt = "Waiting...";
+  void scan() async {
+    if (isScanning) {
+      flutterBlue.scanResults.listen((results) {
+        setState(() {
+          scanResultList = results;
+        });
+      }).onError((error) {
+        print('Error during scan: $error');
+        setState(() {
+          isScanning = false;
+        });
       });
-    });
-    return;
+    }
+  }
+
+  Widget deviceSignal(ScanResult r) {
+    return Text(r.rssi.toString());
+  }
+
+  Widget deviceMacAddress(ScanResult r) {
+    return Text(r.device.id.id);
+  }
+
+  Widget deviceName(ScanResult r) {
+    String name;
+    if (r.device.name.isNotEmpty) {
+      name = r.device.name;
+    } else if (r.advertisementData.localName.isNotEmpty) {
+      name = r.advertisementData.localName;
+    } else {
+      name = 'N/A';
+    }
+    return Text(name);
+  }
+
+  Widget leading(ScanResult r) {
+    return CircleAvatar(
+      backgroundColor: Colors.cyan,
+      child: Icon(
+        Icons.bluetooth,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  void onTap(ScanResult r) {
+    print('${r.device.name}');
+  }
+
+  Widget listItem(ScanResult r) {
+    return ListTile(
+      onTap: () => onTap(r),
+      leading: leading(r),
+      title: deviceName(r),
+      subtitle: deviceMacAddress(r),
+      trailing: deviceSignal(r),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text('BLE Set Notification'),
       ),
       body: Center(
         child: ListView(
@@ -159,7 +186,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             ElevatedButton(
               child: Text("Search BLE Devices", style: TextStyle(color: Colors.black)),
-              onPressed: this.blueBtn,
+              onPressed: toggleState,
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(200, 60), // 버튼 크기
                 backgroundColor: Colors.white, // 배경색
@@ -173,13 +200,24 @@ class _MyHomePageState extends State<MyHomePage> {
             Container(
               padding: EdgeInsets.all(10.0),
               decoration: BoxDecoration(
-                color: check ? Colors.blue : Colors.red,
+                color: isScanning ? Colors.blue : Colors.red,
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Text(
-                result?.toString() ?? this.viewTxt,
+                scanResultList.isEmpty ? "Waiting..." : "Devices found: ${scanResultList.length}",
                 style: TextStyle(color: Colors.white),
               ),
+            ),
+            SizedBox(height: 20.0),
+            ListView.separated(
+              shrinkWrap: true,
+              itemCount: scanResultList.length,
+              itemBuilder: (context, index) {
+                return listItem(scanResultList[index]);
+              },
+              separatorBuilder: (BuildContext context, int index) {
+                return const Divider();
+              },
             ),
           ],
         ),
@@ -250,62 +288,6 @@ class _DataReceivingPageState extends State<DataReceivingPage> {
         onPressed: _addData,
         child: Icon(Icons.add),
         backgroundColor: Colors.blue,
-      ),
-    );
-  }
-}
-
-class LoginPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Login Page'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ElevatedButton(
-            child: Text('Login with BLE', style: TextStyle(color: Colors.black)),
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                builder: (BuildContext context) {
-                  return Container(
-                    height: 200,
-                    child: Column(
-                      children: [
-                        ListTile(
-                          leading: Icon(Icons.bluetooth, color: Colors.black),
-                          title: Text('Connect via BLE', style: TextStyle(color: Colors.black)),
-                          onTap: () {
-                            // BLE 로그인 처리
-                            Navigator.pop(context);
-                          },
-                        ),
-                        ListTile(
-                          leading: Icon(Icons.cancel, color: Colors.black),
-                          title: Text('Cancel', style: TextStyle(color: Colors.black)),
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              minimumSize: Size(200, 60), // 버튼 크기
-              backgroundColor: Colors.white, // 배경색
-              foregroundColor: Colors.black, // 텍스트 색상
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30), // 둥근 모서리
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
