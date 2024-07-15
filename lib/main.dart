@@ -106,7 +106,7 @@ class _PairingPageState extends State<PairingPage> {
 
   void startScan() {
     try {
-      flutterBlue.startScan(scanMode: ScanMode.balanced, allowDuplicates: true, timeout: Duration(seconds: 12));
+      flutterBlue.startScan(scanMode: ScanMode.balanced, allowDuplicates: true);
       scan();
     } catch (e) {
       print('Error starting scan: $e');
