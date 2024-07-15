@@ -90,6 +90,7 @@ class _PairingPageState extends State<PairingPage> {
   FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   List<ScanResult> scanResultList = [];
   bool isScanning = false;
+  int naCount = 0;
 
   void toggleState() {
     setState(() {
@@ -119,7 +120,8 @@ class _PairingPageState extends State<PairingPage> {
     if (isScanning) {
       flutterBlue.scanResults.listen((results) {
         setState(() {
-          scanResultList = results;
+          scanResultList = results.where((r) => r.device.name.isNotEmpty || r.advertisementData.localName.isNotEmpty).toList();
+          naCount = results.length - scanResultList.length;
         });
       }).onError((error) {
         print('Error during scan: $error');
@@ -185,7 +187,7 @@ class _PairingPageState extends State<PairingPage> {
           padding: EdgeInsets.all(16.0),
           children: <Widget>[
             ElevatedButton(
-              child: Text("Search BLE Devices", style: TextStyle(color: Colors.black)),
+              child: Text(isScanning ? "Stop" : "Search BLE Devices", style: TextStyle(color: Colors.black)),
               onPressed: toggleState,
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(200, 60), // 버튼 크기
@@ -204,13 +206,16 @@ class _PairingPageState extends State<PairingPage> {
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Text(
-                scanResultList.isEmpty ? "Waiting..." : "Devices found: ${scanResultList.length}",
+                scanResultList.isEmpty
+                    ? "Waiting..."
+                    : "Devices found: ${scanResultList.length} (N/A Count: $naCount)",
                 style: TextStyle(color: Colors.white),
               ),
             ),
             SizedBox(height: 20.0),
             ListView.separated(
               shrinkWrap: true,
+              physics: ClampingScrollPhysics(),
               itemCount: scanResultList.length,
               itemBuilder: (context, index) {
                 return listItem(scanResultList[index]);
