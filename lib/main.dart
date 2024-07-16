@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         appBarTheme: AppBarTheme(
-          color: Color(0xFF4169E1), // 로얄 블루
+          color: Color(0xFF4169E1),
           titleTextStyle: TextStyle(
             color: Colors.white,
             fontSize: 24.0,
@@ -132,6 +132,29 @@ class _PairingPageState extends State<PairingPage> {
     }
   }
 
+  void connectToDevice(ScanResult r) async {
+    try {
+      await r.device.connect();
+      print('Connected to ${r.device.name}');
+      discoverServices(r.device);
+    } catch (e) {
+      print('Error connecting to device: $e');
+    }
+  }
+
+  void discoverServices(BluetoothDevice device) async {
+    List<BluetoothService> services = await device.discoverServices();
+    services.forEach((service) {
+      service.characteristics.forEach((characteristic) async {
+        var value = await characteristic.read();
+        print('Characteristic value: $value');
+        setState(() {
+          receivedData.add(String.fromCharCodes(value));
+        });
+      });
+    });
+  }
+
   Widget deviceSignal(ScanResult r) {
     return Text(r.rssi.toString());
   }
@@ -163,7 +186,30 @@ class _PairingPageState extends State<PairingPage> {
   }
 
   void onTap(ScanResult r) {
-    print('${r.device.name}');
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Connect to Device'),
+          content: Text('Do you want to connect to ${r.device.name}?'),
+          actions: <Widget>[
+            ElevatedButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              child: Text('Connect'),
+              onPressed: () {
+                connectToDevice(r);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget listItem(ScanResult r) {
@@ -175,6 +221,8 @@ class _PairingPageState extends State<PairingPage> {
       trailing: deviceSignal(r),
     );
   }
+
+  List<String> receivedData = [];
 
   @override
   Widget build(BuildContext context) {
@@ -190,15 +238,15 @@ class _PairingPageState extends State<PairingPage> {
               child: Text(isScanning ? "Stop" : "Search BLE Devices", style: TextStyle(color: Colors.black)),
               onPressed: toggleState,
               style: ElevatedButton.styleFrom(
-                minimumSize: Size(200, 60), // 버튼 크기
-                backgroundColor: Colors.white, // 배경색
-                foregroundColor: Colors.black, // 텍스트 색상
+                minimumSize: Size(200, 60),
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30), // 둥근 모서리
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
-            SizedBox(height: 20.0), // 간격 추가
+            SizedBox(height: 20.0),
             Container(
               padding: EdgeInsets.all(10.0),
               decoration: BoxDecoration(
@@ -222,6 +270,18 @@ class _PairingPageState extends State<PairingPage> {
               },
               separatorBuilder: (BuildContext context, int index) {
                 return const Divider();
+              },
+            ),
+            SizedBox(height: 20.0),
+            Text('Received Data:'),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: ClampingScrollPhysics(),
+              itemCount: receivedData.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(receivedData[index]),
+                );
               },
             ),
           ],
@@ -262,10 +322,10 @@ class _DataReceivingPageState extends State<DataReceivingPage> {
                 Navigator.of(context).pop();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white, // 배경색
-                foregroundColor: Colors.black, // 텍스트 색상
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30), // 둥근 모서리
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
