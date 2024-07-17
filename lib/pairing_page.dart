@@ -194,7 +194,6 @@ class _PairingPageState extends State<PairingPage> {
               },
             ),
             SizedBox(height: 20.0),
-            Text('Received Data:'),
             ListView.builder(
               shrinkWrap: true,
               physics: ClampingScrollPhysics(),
