@@ -11,7 +11,17 @@ class _PairingPageState extends State<PairingPage> {
   FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   List<ScanResult> scanResultList = [];
   bool isScanning = false;
+  bool isConnecting = false;  // 연결 중 상태를 나타내는 플래그 추가
+  String connectingDeviceName = '';  // 연결 중인 기기 이름
   int naCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    flutterBlue.state.listen((state) {
+      setState(() {});
+    });
+  }
 
   void toggleState() {
     setState(() {
@@ -54,12 +64,21 @@ class _PairingPageState extends State<PairingPage> {
   }
 
   void connectToDevice(ScanResult r) async {
+    setState(() {
+      isConnecting = true;  // 연결 중 상태로 설정
+      connectingDeviceName = r.device.name;  // 연결 중인 기기 이름 설정
+    });
     try {
       await CustomBluetoothService.instance.connectToDevice(r);
       print('Connected to ${r.device.name}');
       discoverServices(r.device);
     } catch (e) {
       print('Error connecting to device: $e');
+    } finally {
+      setState(() {
+        isConnecting = false;  // 연결 중 상태 해제
+        connectingDeviceName = '';  // 연결 중인 기기 이름 초기화
+      });
     }
   }
 
@@ -123,8 +142,8 @@ class _PairingPageState extends State<PairingPage> {
             ElevatedButton(
               child: Text('Connect'),
               onPressed: () {
-                connectToDevice(r);
                 Navigator.of(context).pop();
+                connectToDevice(r);  // 여기로 이동하여 연결을 시도합니다.
               },
             ),
           ],
@@ -205,7 +224,12 @@ class _PairingPageState extends State<PairingPage> {
               },
             ),
             SizedBox(height: 20.0),
-            CustomBluetoothService.instance.connectedDevice != null
+            isConnecting
+                ? Text(
+              'Connecting to $connectingDeviceName...',
+              style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold),
+            )
+                : CustomBluetoothService.instance.connectedDevice != null
                 ? Text(
               'Connected to ${CustomBluetoothService.instance.connectedDevice!.name} - State: ${CustomBluetoothService.instance.deviceState.toString().split('.')[1]}',
               style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
