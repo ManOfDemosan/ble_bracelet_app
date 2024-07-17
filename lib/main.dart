@@ -91,6 +91,8 @@ class _PairingPageState extends State<PairingPage> {
   List<ScanResult> scanResultList = [];
   bool isScanning = false;
   int naCount = 0;
+  BluetoothDevice? connectedDevice;
+  BluetoothDeviceState deviceState = BluetoothDeviceState.disconnected;
 
   void toggleState() {
     setState(() {
@@ -135,6 +137,14 @@ class _PairingPageState extends State<PairingPage> {
   void connectToDevice(ScanResult r) async {
     try {
       await r.device.connect();
+      setState(() {
+        connectedDevice = r.device;
+      });
+      connectedDevice!.state.listen((state) {
+        setState(() {
+          deviceState = state;
+        });
+      });
       print('Connected to ${r.device.name}');
       discoverServices(r.device);
     } catch (e) {
@@ -283,6 +293,16 @@ class _PairingPageState extends State<PairingPage> {
                   title: Text(receivedData[index]),
                 );
               },
+            ),
+            SizedBox(height: 20.0),
+            connectedDevice != null
+                ? Text(
+              'Connected to ${connectedDevice!.name} - State: ${deviceState.toString().split('.')[1]}',
+              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            )
+                : Text(
+              'No device connected',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ],
         ),
