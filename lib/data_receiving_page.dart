@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'bluetooth_service.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'custom_bluetooth_service.dart';
 
 class DataReceivingPage extends StatefulWidget {
   @override
@@ -12,51 +13,26 @@ class _DataReceivingPageState extends State<DataReceivingPage> {
   @override
   void initState() {
     super.initState();
-    // Mock data fetching function, replace with actual data fetching from the device
     fetchDataFromDevice();
   }
 
-  void fetchDataFromDevice() {
-    // Simulate fetching data from Bluetooth device
-    setState(() {
-      receivedData = ["Data 1", "Data 2", "Data 3"];
-    });
-  }
-
-  void _addData() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String newData = "";
-        return AlertDialog(
-          title: Text('Add Data', style: TextStyle(color: Colors.black)),
-          content: TextField(
-            onChanged: (value) {
-              newData = value;
-            },
-            decoration: InputDecoration(hintText: "Enter data name"),
-          ),
-          actions: [
-            ElevatedButton(
-              child: Text('Add', style: TextStyle(color: Colors.black)),
-              onPressed: () {
-                setState(() {
-                  receivedData.add(newData);
-                });
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+  void fetchDataFromDevice() async {
+    if (CustomBluetoothService.instance.connectedDevice != null) {
+      List<BluetoothService> services = await CustomBluetoothService.instance.discoverServices();
+      for (BluetoothService service in services) {
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          try {
+            List<int> value = await CustomBluetoothService.instance.readCharacteristic(characteristic);
+            String stringValue = String.fromCharCodes(value);
+            setState(() {
+              receivedData.add(stringValue);
+            });
+          } catch (e) {
+            print('Error reading characteristic: $e');
+          }
+        }
+      }
+    }
   }
 
   @override
@@ -72,11 +48,6 @@ class _DataReceivingPageState extends State<DataReceivingPage> {
             title: Text(receivedData[index], style: TextStyle(color: Colors.black)),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addData,
-        child: Icon(Icons.add),
-        backgroundColor: Colors.blue,
       ),
     );
   }
