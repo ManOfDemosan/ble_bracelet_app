@@ -1,5 +1,7 @@
-import 'package:flutter/services.dart';
+import 'dart:collection';
+
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'dart:async';
 
 class CustomBluetoothService {
   CustomBluetoothService._privateConstructor();
@@ -11,7 +13,7 @@ class CustomBluetoothService {
   final FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   BluetoothDevice? _connectedDevice;
   BluetoothDeviceState _deviceState = BluetoothDeviceState.disconnected;
-  bool _isReadingCharacteristic = false; // 추가: 읽기 중복 방지 플래그
+  Queue<Function> _readQueue = Queue();
 
   BluetoothDevice? get connectedDevice => _connectedDevice;
   BluetoothDeviceState get deviceState => _deviceState;
@@ -39,17 +41,44 @@ class CustomBluetoothService {
   }
 
   Future<List<int>> readCharacteristic(BluetoothCharacteristic characteristic) async {
-    if (_isReadingCharacteristic) {
-      throw PlatformException(
-        code: 'read_characteristic_error',
-        message: 'Another read operation is already in progress',
-      );
+    final completer = Completer<List<int>>();
+    _readQueue.add(() async {
+      try {
+        final result = await characteristic.read();
+        completer.complete(result);
+      } catch (e) {
+        completer.completeError(e);
+      } finally {
+        _readQueue.removeFirst();
+        if (_readQueue.isNotEmpty) {
+          _readQueue.first();
+        }
+      }
+    });
+
+    if (_readQueue.length == 1) {
+      _readQueue.first();
     }
-    _isReadingCharacteristic = true; // 읽기 시작
-    try {
-      return await characteristic.read();
-    } finally {
-      _isReadingCharacteristic = false; // 읽기 완료
+
+    return completer.future;
+  }
+
+  Future<List<int>> readSDCardFileList(String serviceUuid, String characteristicUuid) async {
+    if (_connectedDevice != null) {
+      var services = await discoverServices();
+      print('Discovered services: ${services.length}');
+      for (var service in services) {
+        print('Service found: ${service.uuid}');
+        if (service.uuid.toString() == serviceUuid) {
+          for (var characteristic in service.characteristics) {
+            print('Characteristic found: ${characteristic.uuid}');
+            if (characteristic.uuid.toString() == characteristicUuid) {
+              return await readCharacteristic(characteristic);
+            }
+          }
+        }
+      }
     }
+    throw Exception('Service or characteristic not found');
   }
 }

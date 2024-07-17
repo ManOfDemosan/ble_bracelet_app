@@ -8,30 +8,31 @@ class DataReceivingPage extends StatefulWidget {
 }
 
 class _DataReceivingPageState extends State<DataReceivingPage> {
-  List<String> receivedData = [];
+  List<String> fileList = [];
 
   @override
   void initState() {
     super.initState();
-    fetchDataFromDevice();
+    fetchFileListFromSDCard();
   }
 
-  void fetchDataFromDevice() async {
-    if (CustomBluetoothService.instance.connectedDevice != null) {
-      List<BluetoothService> services = await CustomBluetoothService.instance.discoverServices();
-      for (BluetoothService service in services) {
-        for (BluetoothCharacteristic characteristic in service.characteristics) {
-          try {
-            List<int> value = await CustomBluetoothService.instance.readCharacteristic(characteristic);
-            String stringValue = String.fromCharCodes(value);
-            setState(() {
-              receivedData.add(stringValue);
-            });
-          } catch (e) {
-            print('Error reading characteristic: $e');
-          }
-        }
-      }
+  void fetchFileListFromSDCard() async {
+    try {
+      String serviceUuid = '27655500-9de4-4e89-9229-3b654a53a965';
+      String characteristicUuid = '27655700-9de4-4e89-9229-3b654a53a965';
+
+      print('Attempting to read SD card file list...');
+      List<int> sdCardData = await CustomBluetoothService.instance.readSDCardFileList(serviceUuid, characteristicUuid);
+      String stringValue = String.fromCharCodes(sdCardData);
+      print('Received data: $stringValue');
+
+      // .DAT 파일만 필터링
+      List<String> files = stringValue.split('\n').where((file) => file.endsWith('.DAT')).toList();
+      setState(() {
+        fileList.addAll(files);
+      });
+    } catch (e) {
+      print('Error reading SD card file list: $e');
     }
   }
 
@@ -39,13 +40,13 @@ class _DataReceivingPageState extends State<DataReceivingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Data Receiving Page'),
+        title: Text('SD Card File List'),
       ),
       body: ListView.builder(
-        itemCount: receivedData.length,
+        itemCount: fileList.length,
         itemBuilder: (context, index) {
           return ListTile(
-            title: Text(receivedData[index], style: TextStyle(color: Colors.black)),
+            title: Text(fileList[index], style: TextStyle(color: Colors.black)),
           );
         },
       ),
