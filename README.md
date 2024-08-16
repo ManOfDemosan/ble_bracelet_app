@@ -30,6 +30,12 @@ Retrieve and display data from the connected device.
 The welcoming start page to navigate through the app features.
 
 <img width="182" alt="start page" src="https://github.com/user-attachments/assets/38a45dff-a798-47c7-8e98-37b245d3c6be">
+### Video
+
+
+https://github.com/user-attachments/assets/e5097f42-34da-4c7e-9ccf-ed395045ead9
+
+
 
 ## Getting Started
 
