@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "850472822805",
+    "project_id": "loop-db-a7b33",
+    "storage_bucket": "loop-db-a7b33.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:850472822805:android:f2f4ca8eff69a7e19b061c",
+        "android_client_info": {
+          "package_name": "com.example.bluetooth"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJspAuddRNBvMjygmUWxzLPJDD4Ry_C1o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
